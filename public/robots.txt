@@ -1,0 +1,6 @@
+# https://chrono.hjf.io robots.txt
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://chrono.hjf.io/sitemap.xml 
