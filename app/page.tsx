@@ -3,22 +3,25 @@ import { DateAndMoonDisplay } from "@/components/date-and-moon-display"
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-4">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4 sm:p-6">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-8 flex items-center justify-between py-6">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Chrono<span className="text-rose-500">Sync</span>
+        <header className="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between py-8 border-b border-amber-200/10">
+          <h1 className="text-2xl sm:text-3xl font-light tracking-wider text-foreground">
+            Chrono<span className="text-amber-400">Sync</span>
           </h1>
-          <p className="text-sm text-slate-500">Precision timekeeping for the modern world</p>
+          <p className="text-sm text-muted-foreground mt-2 sm:mt-0 font-light tracking-wider">Refined timekeeping for connoisseurs</p>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-8 md:grid-cols-2">
           <CombinedTimeDisplay />
           <DateAndMoonDisplay />
         </div>
 
-        <footer className="mt-12 border-t border-slate-200 pt-6 text-center text-sm text-slate-500">
-          © 2025 ChronoSync. All rights reserved.
+        <footer className="mt-16 border-t border-amber-200/10 pt-8 text-center text-sm text-muted-foreground font-light tracking-wider">
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-amber-400 font-serif mb-2">ChronoSync</div>
+            <div>© 2025 All rights reserved</div>
+          </div>
         </footer>
       </div>
     </main>

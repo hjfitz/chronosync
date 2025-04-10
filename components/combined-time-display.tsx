@@ -6,16 +6,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Clock, Globe } from "lucide-react"
+import { useTheme } from "next-themes"
 
 export function CombinedTimeDisplay() {
   const [time, setTime] = useState(new Date())
   const [showGmtHand, setShowGmtHand] = useState(true)
   const [selectedTimezone, setSelectedTimezone] = useState("GMT+0")
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const { theme } = useTheme()
+  const [bezelsStyle, setBezelsStyle] = useState<"pepsi" | "batman" | "rootbeer">("pepsi")
 
   // Get timezone offset in hours
   const getTimezoneOffset = (timezone: string) => {
     return Number.parseInt(timezone.replace("GMT", "")) || 0
+  }
+
+  // Parse HSL variable to actual color value
+  const parseHslVariable = (variable: string) => {
+    // Default fallback colors in case variables aren't available
+    const fallbacks = {
+      "--card": "255, 255, 255", // white
+      "--foreground": "23, 23, 23", // near black
+      "--muted": "240, 240, 240", // light gray
+      "--muted-foreground": "115, 115, 115", // mid gray
+      "--primary": "37, 99, 235", // blue
+      "--border": "229, 231, 235", // light gray
+      "--accent-foreground": "28, 28, 28", // dark gray
+    }
+
+    if (!document.documentElement) return `hsl(${fallbacks[variable as keyof typeof fallbacks] || "0, 0%, 0%"})`;
+
+    const value = getComputedStyle(document.documentElement)
+      .getPropertyValue(variable)
+      .trim();
+      
+    return value ? `hsl(${value})` : `hsl(${fallbacks[variable as keyof typeof fallbacks] || "0, 0%, 0%"})`;
   }
 
   // Draw clock
@@ -27,42 +52,164 @@ export function CombinedTimeDisplay() {
     // Clear canvas
     ctx.clearRect(0, 0, width, height)
 
-    // Draw clock face
+    // Get colors based on current theme
+    const isDark = theme === "dark"
+    
+    // GMT Master inspired color palette
+    const clockFaceBg = isDark ? "#0a0a14" : "#0a0a14" // Always dark for GMT style
+    const hourMarkerColor = "#e0e0e0" // Silver-white
+    const hourMarkersOutlineColor = "#d4af37" // Gold outlines for markers
+    const handColor = "#e0e0e0" // Silver-white for hands
+    const secondHandColor = "#e93b25" // Red second hand
+    const gmtHandColor = "#ce4119" // GMT hand in vibrant orange-red
+    const centerDotColor = "#e0e0e0" // Silver central dot
+    
+    // Bezel colors
+    const bezelColors = {
+      pepsi: {
+        upper: "#001e96", // Blue (upper half for day hours)
+        lower: "#ce0314"  // Red (lower half for night hours)
+      },
+      batman: {
+        upper: "#001e96", // Blue (upper half)
+        lower: "#0a0a14"  // Black (lower half)
+      },
+      rootbeer: {
+        upper: "#382624", // Brown
+        lower: "#d4af37"  // Gold
+      }
+    };
+    
+    const selectedBezel = bezelColors[bezelsStyle];
+
+    // Draw outer case (representing the watch case)
     ctx.beginPath()
-    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+    ctx.arc(centerX, centerY, radius * 1.1, 0, 2 * Math.PI)
+    ctx.fillStyle = isDark ? "#32323e" : "#babbbd" // Steel case color
+    ctx.fill()
+
+    // Draw bezel - GMT Master iconic two-tone bezel
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius * 1.05, 0, 2 * Math.PI)
+    ctx.fillStyle = "#0a0a14" // Base bezel color
+    ctx.fill()
+    
+    // Draw rotating bezel with 24-hour markings
+    // Draw upper half of bezel (day hours)
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius * 1.05, -Math.PI/2, Math.PI/2, false)
+    ctx.lineTo(centerX, centerY)
+    ctx.closePath()
+    ctx.fillStyle = selectedBezel.upper
+    ctx.fill()
+    
+    // Draw lower half of bezel (night hours)
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius * 1.05, Math.PI/2, 3*Math.PI/2, false)
+    ctx.lineTo(centerX, centerY)
+    ctx.closePath()
+    ctx.fillStyle = selectedBezel.lower
+    ctx.fill()
+    
+    // Draw 24-hour markings on bezel
+    ctx.font = `${radius * 0.09}px 'Inter', sans-serif`
+    ctx.fillStyle = "#ffffff"
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+    
+    // Draw 24h numbers on bezel
+    for (let i = 0; i < 24; i++) {
+      const angle = (i * Math.PI) / 12
+      const x = centerX + radius * 0.93 * Math.sin(angle)
+      const y = centerY - radius * 0.93 * Math.cos(angle)
+      
+      // Even numbers in larger font
+      if (i % 2 === 0) {
+        ctx.font = `bold ${radius * 0.09}px 'Inter', sans-serif`
+        ctx.fillText(i.toString(), x, y)
+      } else {
+        // Small markers for odd hours
+        ctx.beginPath()
+        ctx.arc(x, y, radius * 0.01, 0, 2 * Math.PI)
+        ctx.fillStyle = "#ffffff"
+        ctx.fill()
+      }
+    }
+    
+    // Draw bezel triangle at 12 position
+    ctx.beginPath()
+    ctx.moveTo(centerX, centerY - radius * 1.05)
+    ctx.lineTo(centerX - radius * 0.03, centerY - radius)
+    ctx.lineTo(centerX + radius * 0.03, centerY - radius)
+    ctx.closePath()
     ctx.fillStyle = "#ffffff"
     ctx.fill()
-    ctx.lineWidth = 2
-    ctx.strokeStyle = "#e2e8f0"
-    ctx.stroke()
-
-    // Draw hour markers
-    ctx.lineWidth = 2
-    ctx.strokeStyle = "#64748b"
+    
+    // Draw main clock face
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+    ctx.fillStyle = clockFaceBg
+    ctx.fill()
+    
+    // Subtle texture for the dial
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)"
+    ctx.fill()
+    
+    // Draw hour markers - GMT Master style (round markers at 1,2,4,5,7,8,10,11 and rectangular at 3,6,9, triangle at 12)
     for (let i = 0; i < 12; i++) {
       const angle = (i * Math.PI) / 6
-      const x1 = centerX + radius * 0.9 * Math.sin(angle)
-      const y1 = centerY - radius * 0.9 * Math.cos(angle)
-      const x2 = centerX + radius * 0.8 * Math.sin(angle)
-      const y2 = centerY - radius * 0.8 * Math.cos(angle)
-
+      const x = centerX + radius * 0.85 * Math.sin(angle)
+      const y = centerY - radius * 0.85 * Math.cos(angle)
+      
+      // Gold outline
+      ctx.strokeStyle = hourMarkersOutlineColor
+      ctx.lineWidth = 1
+      
+      if (i === 0) {
+        // Triangle at 12
+        ctx.beginPath()
+        ctx.moveTo(x, y - radius * 0.05)
+        ctx.lineTo(x - radius * 0.035, y + radius * 0.02)
+        ctx.lineTo(x + radius * 0.035, y + radius * 0.02)
+        ctx.closePath()
+        ctx.fillStyle = hourMarkerColor
+        ctx.fill()
+        ctx.stroke()
+      } else if (i === 3 || i === 6 || i === 9) {
+        // Rectangles at 3, 6, 9
+        ctx.beginPath()
+        ctx.rect(x - radius * 0.04, y - radius * 0.02, radius * 0.08, radius * 0.04)
+        ctx.fillStyle = hourMarkerColor
+        ctx.fill()
+        ctx.stroke()
+      } else {
+        // Circles for other hours
+        ctx.beginPath()
+        ctx.arc(x, y, radius * 0.025, 0, 2 * Math.PI)
+        ctx.fillStyle = hourMarkerColor
+        ctx.fill()
+        ctx.stroke()
+      }
+      
+      // Add lume dots
       ctx.beginPath()
-      ctx.moveTo(x1, y1)
-      ctx.lineTo(x2, y2)
-      ctx.stroke()
+      ctx.arc(x, y, radius * 0.01, 0, 2 * Math.PI)
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
+      ctx.fill()
     }
-
-    // Draw minute markers
+    
+    // Small minute markers
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"
     ctx.lineWidth = 1
-    ctx.strokeStyle = "#94a3b8"
     for (let i = 0; i < 60; i++) {
       if (i % 5 !== 0) {
-        // Skip hour markers
         const angle = (i * Math.PI) / 30
         const x1 = centerX + radius * 0.95 * Math.sin(angle)
         const y1 = centerY - radius * 0.95 * Math.cos(angle)
-        const x2 = centerX + radius * 0.9 * Math.sin(angle)
-        const y2 = centerY - radius * 0.9 * Math.cos(angle)
+        const x2 = centerX + radius * 0.92 * Math.sin(angle)
+        const y2 = centerY - radius * 0.92 * Math.cos(angle)
 
         ctx.beginPath()
         ctx.moveTo(x1, y1)
@@ -70,85 +217,135 @@ export function CombinedTimeDisplay() {
         ctx.stroke()
       }
     }
-
-    // Draw hour numbers
-    ctx.font = `${radius * 0.15}px Arial`
-    ctx.fillStyle = "#1e293b"
+    
+    // "Rolex" text - subtle luxury branding
+    ctx.font = `${radius * 0.1}px 'Times New Roman', serif`
+    ctx.fillStyle = hourMarkersOutlineColor
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
-
-    for (let i = 1; i <= 12; i++) {
-      const angle = (i * Math.PI) / 6
-      const x = centerX + radius * 0.7 * Math.sin(angle)
-      const y = centerY - radius * 0.7 * Math.cos(angle)
-      ctx.fillText(i.toString(), x, y)
-    }
+    ctx.fillText("ChronoSync", centerX, centerY - radius * 0.25)
+    
+    // "GMT-Master" text
+    ctx.font = `${radius * 0.06}px 'Inter', sans-serif`
+    ctx.fillStyle = "#e0e0e0"
+    ctx.fillText("GMT-Master", centerX, centerY + radius * 0.25)
 
     // Get current hours, minutes, seconds
     const hours = time.getHours() % 12
     const minutes = time.getMinutes()
     const seconds = time.getSeconds()
 
-    // Draw hour hand
+    // Draw hour hand - Mercedes style
+    const hourAngle = (hours * Math.PI) / 6 + (minutes * Math.PI) / (6 * 60)
+    const hourHandLength = radius * 0.5
+    
+    // Hour hand shape - Mercedes style
     ctx.beginPath()
     ctx.lineWidth = radius * 0.04
     ctx.lineCap = "round"
-    ctx.strokeStyle = "#334155"
-
-    const hourAngle = (hours * Math.PI) / 6 + (minutes * Math.PI) / (6 * 60)
-    const hourHandLength = radius * 0.5
-
+    ctx.strokeStyle = handColor
+    
     ctx.moveTo(centerX, centerY)
-    ctx.lineTo(centerX + hourHandLength * Math.sin(hourAngle), centerY - hourHandLength * Math.cos(hourAngle))
+    ctx.lineTo(
+      centerX + hourHandLength * Math.sin(hourAngle), 
+      centerY - hourHandLength * Math.cos(hourAngle)
+    )
     ctx.stroke()
-
-    // Draw minute hand
+    
+    // Mercedes circle at the end of hour hand
+    const hourHandCircleX = centerX + hourHandLength * 0.7 * Math.sin(hourAngle)
+    const hourHandCircleY = centerY - hourHandLength * 0.7 * Math.cos(hourAngle)
     ctx.beginPath()
-    ctx.lineWidth = radius * 0.025
-    ctx.lineCap = "round"
-    ctx.strokeStyle = "#475569"
+    ctx.arc(hourHandCircleX, hourHandCircleY, radius * 0.05, 0, 2 * Math.PI)
+    ctx.fillStyle = handColor
+    ctx.fill()
 
+    // Draw minute hand - Sword style
     const minuteAngle = (minutes * Math.PI) / 30
-    const minuteHandLength = radius * 0.7
-
+    const minuteHandLength = radius * 0.75
+    
+    ctx.beginPath()
+    ctx.lineWidth = radius * 0.03
+    ctx.lineCap = "round"
+    ctx.strokeStyle = handColor
+    
     ctx.moveTo(centerX, centerY)
-    ctx.lineTo(centerX + minuteHandLength * Math.sin(minuteAngle), centerY - minuteHandLength * Math.cos(minuteAngle))
+    ctx.lineTo(
+      centerX + minuteHandLength * Math.sin(minuteAngle), 
+      centerY - minuteHandLength * Math.cos(minuteAngle)
+    )
     ctx.stroke()
 
+    // Draw GMT hand with distinctive triangle tip
+    if (showGmtHand) {
+      const offset = getTimezoneOffset(selectedTimezone)
+      const gmtHours = (hours + offset) % 24
+      const gmtAngle = (gmtHours * Math.PI) / 12
+      const gmtHandLength = radius * 0.8
+      
+      ctx.beginPath()
+      ctx.lineWidth = radius * 0.02
+      ctx.lineCap = "butt"
+      ctx.strokeStyle = gmtHandColor
+      
+      ctx.moveTo(centerX, centerY)
+      ctx.lineTo(
+        centerX + gmtHandLength * 0.8 * Math.sin(gmtAngle), 
+        centerY - gmtHandLength * 0.8 * Math.cos(gmtAngle)
+      )
+      ctx.stroke()
+      
+      // Triangle tip for GMT hand
+      const tipX = centerX + gmtHandLength * Math.sin(gmtAngle)
+      const tipY = centerY - gmtHandLength * Math.cos(gmtAngle)
+      
+      ctx.beginPath()
+      ctx.moveTo(tipX, tipY)
+      ctx.lineTo(
+        tipX - radius * 0.04 * Math.cos(gmtAngle), 
+        tipY - radius * 0.04 * Math.sin(gmtAngle)
+      )
+      ctx.lineTo(
+        tipX + radius * 0.04 * Math.cos(gmtAngle), 
+        tipY + radius * 0.04 * Math.sin(gmtAngle)
+      )
+      ctx.closePath()
+      ctx.fillStyle = gmtHandColor
+      ctx.fill()
+    }
+    
     // Draw second hand
+    const secondAngle = (seconds * Math.PI) / 30
+    const secondHandLength = radius * 0.85
+    
     ctx.beginPath()
     ctx.lineWidth = radius * 0.01
     ctx.lineCap = "round"
-    ctx.strokeStyle = "#ef4444"
-
-    const secondAngle = (seconds * Math.PI) / 30
-    const secondHandLength = radius * 0.8
-
-    ctx.moveTo(centerX, centerY)
-    ctx.lineTo(centerX + secondHandLength * Math.sin(secondAngle), centerY - secondHandLength * Math.cos(secondAngle))
+    ctx.strokeStyle = secondHandColor
+    
+    // Draw counterbalance
+    const counterbalanceLength = radius * 0.2
+    ctx.moveTo(
+      centerX - counterbalanceLength * Math.sin(secondAngle), 
+      centerY + counterbalanceLength * Math.cos(secondAngle)
+    )
+    
+    // Draw main second hand
+    ctx.lineTo(
+      centerX + secondHandLength * Math.sin(secondAngle), 
+      centerY - secondHandLength * Math.cos(secondAngle)
+    )
     ctx.stroke()
-
-    // Draw GMT hand if enabled
-    if (showGmtHand) {
-      const offset = getTimezoneOffset(selectedTimezone)
-      const gmtHours = (hours + offset) % 12
-      const gmtAngle = (gmtHours * Math.PI) / 6 + (minutes * Math.PI) / (6 * 60)
-      const gmtHandLength = radius * 0.4
-
-      ctx.beginPath()
-      ctx.lineWidth = radius * 0.03
-      ctx.lineCap = "round"
-      ctx.strokeStyle = "#8b5cf6" // Purple for GMT hand
-
-      ctx.moveTo(centerX, centerY)
-      ctx.lineTo(centerX + gmtHandLength * Math.sin(gmtAngle), centerY - gmtHandLength * Math.cos(gmtAngle))
-      ctx.stroke()
-    }
 
     // Draw center circle
     ctx.beginPath()
-    ctx.arc(centerX, centerY, radius * 0.05, 0, 2 * Math.PI)
-    ctx.fillStyle = "#1e293b"
+    ctx.arc(centerX, centerY, radius * 0.04, 0, 2 * Math.PI)
+    ctx.fillStyle = "#0a0a14"
+    ctx.fill()
+    
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius * 0.03, 0, 2 * Math.PI)
+    ctx.fillStyle = centerDotColor
     ctx.fill()
   }
 
@@ -190,7 +387,7 @@ export function CombinedTimeDisplay() {
       clearInterval(timer)
       window.removeEventListener("resize", updateCanvasSize)
     }
-  }, [time, showGmtHand, selectedTimezone])
+  }, [time, showGmtHand, selectedTimezone, theme, bezelsStyle])
 
   // Format digital time
   const formatTime = (date: Date) => {
@@ -202,95 +399,107 @@ export function CombinedTimeDisplay() {
 
   // Format GMT time
   const formatGmtTime = (date: Date, offset: number) => {
-    const localDate = new Date(date)
-    const userOffset = (localDate.getTimezoneOffset() * -1) / 60 // Convert to hours
-    localDate.setHours(localDate.getHours() - userOffset + offset)
+    const gmtDate = new Date(date.getTime())
+    const localOffset = date.getTimezoneOffset() / 60
+    gmtDate.setHours(date.getHours() + localOffset + offset)
 
-    const hours = localDate.getHours().toString().padStart(2, "0")
-    const minutes = localDate.getMinutes().toString().padStart(2, "0")
-    const seconds = localDate.getSeconds().toString().padStart(2, "0")
-
-    return `${hours}:${minutes}:${seconds}`
+    const hours = gmtDate.getHours().toString().padStart(2, "0")
+    const minutes = gmtDate.getMinutes().toString().padStart(2, "0")
+    return `${hours}:${minutes}`
   }
 
-  const timezones = [
-    { label: "GMT-12", value: "GMT-12" },
-    { label: "GMT-11", value: "GMT-11" },
-    { label: "GMT-10", value: "GMT-10" },
-    { label: "GMT-9", value: "GMT-9" },
-    { label: "GMT-8", value: "GMT-8" },
-    { label: "GMT-7", value: "GMT-7" },
-    { label: "GMT-6", value: "GMT-6" },
-    { label: "GMT-5", value: "GMT-5" },
-    { label: "GMT-4", value: "GMT-4" },
-    { label: "GMT-3", value: "GMT-3" },
-    { label: "GMT-2", value: "GMT-2" },
-    { label: "GMT-1", value: "GMT-1" },
-    { label: "GMT+0", value: "GMT+0" },
-    { label: "GMT+1", value: "GMT+1" },
-    { label: "GMT+2", value: "GMT+2" },
-    { label: "GMT+3", value: "GMT+3" },
-    { label: "GMT+4", value: "GMT+4" },
-    { label: "GMT+5", value: "GMT+5" },
-    { label: "GMT+6", value: "GMT+6" },
-    { label: "GMT+7", value: "GMT+7" },
-    { label: "GMT+8", value: "GMT+8" },
-    { label: "GMT+9", value: "GMT+9" },
-    { label: "GMT+10", value: "GMT+10" },
-    { label: "GMT+11", value: "GMT+11" },
-    { label: "GMT+12", value: "GMT+12" },
-  ]
-
   return (
-    <Card className="h-full overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-rose-500 to-rose-600 text-white">
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b border-border/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            <CardTitle>Time Display</CardTitle>
+            <Clock className="h-5 w-5 text-amber-400" />
+            <CardTitle className="font-light tracking-wide">GMT-Master</CardTitle>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="show-gmt" className="text-white text-sm">
-                GMT Hand
-              </Label>
-              <Switch
-                id="show-gmt"
-                checked={showGmtHand}
-                onCheckedChange={setShowGmtHand}
-                className="data-[state=checked]:bg-white data-[state=checked]:text-rose-600"
-              />
-            </div>
-            <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
-              <SelectTrigger className="w-[110px] bg-white/10 border-white/20 text-white">
-                <SelectValue placeholder="Timezone" />
-              </SelectTrigger>
-              <SelectContent>
-                {timezones.map((timezone) => (
-                  <SelectItem key={timezone.value} value={timezone.value}>
-                    {timezone.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-3">
+            <button 
+              className={`w-5 h-5 rounded-full transition-opacity ${bezelsStyle === 'pepsi' ? 'ring-1 ring-amber-400' : 'opacity-50'}`}
+              onClick={() => setBezelsStyle('pepsi')}
+              title="Pepsi bezel (red/blue)"
+              style={{ 
+                background: 'linear-gradient(90deg, #001e96 0%, #001e96 50%, #ce0314 50%, #ce0314 100%)' 
+              }}
+            />
+            <button 
+              className={`w-5 h-5 rounded-full transition-opacity ${bezelsStyle === 'batman' ? 'ring-1 ring-amber-400' : 'opacity-50'}`}
+              onClick={() => setBezelsStyle('batman')}
+              title="Batman bezel (black/blue)"
+              style={{ 
+                background: 'linear-gradient(90deg, #001e96 0%, #001e96 50%, #0a0a14 50%, #0a0a14 100%)' 
+              }}
+            />
+            <button 
+              className={`w-5 h-5 rounded-full transition-opacity ${bezelsStyle === 'rootbeer' ? 'ring-1 ring-amber-400' : 'opacity-50'}`}
+              onClick={() => setBezelsStyle('rootbeer')}
+              title="Rootbeer bezel (brown/gold)"
+              style={{ 
+                background: 'linear-gradient(90deg, #382624 0%, #382624 50%, #d4af37 50%, #d4af37 100%)' 
+              }}
+            />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0 flex flex-col h-[400px]">
-        <div className="relative flex-1">
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-        </div>
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-slate-500" />
-            <div className="text-xl font-medium tabular-nums">{formatTime(time)}</div>
+      <CardContent className="p-6">
+        <div className="grid gap-8">
+          {/* Analog clock */}
+          <div className="relative h-72 sm:h-96 mx-auto w-full max-w-[350px]">
+            <canvas ref={canvasRef} className="h-full w-full" />
           </div>
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-slate-500" />
-            <div className="text-xl font-medium tabular-nums">
-              {formatGmtTime(time, getTimezoneOffset(selectedTimezone))}
+
+          {/* Digital clock */}
+          <div className="grid gap-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col items-center justify-center rounded-sm bg-muted/20 p-4 text-center border-b border-amber-100/10">
+                <div className="text-sm font-light tracking-widest text-muted-foreground mb-1">Local Time</div>
+                <div className="text-3xl font-light tracking-[0.2em]">{formatTime(time)}</div>
+              </div>
+              <div className="flex flex-col items-center justify-center rounded-sm bg-muted/20 p-4 text-center border-b border-amber-100/10">
+                <div className="text-sm font-light tracking-widest text-muted-foreground mb-1">{selectedTimezone}</div>
+                <div className="text-3xl font-light tracking-[0.2em]">
+                  {formatGmtTime(time, getTimezoneOffset(selectedTimezone))}
+                </div>
+              </div>
             </div>
-            <span className="text-sm text-slate-500">{selectedTimezone}</span>
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-border/20 pt-4">
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="gmt-hand" 
+                  checked={showGmtHand} 
+                  onCheckedChange={setShowGmtHand}
+                  className="data-[state=checked]:bg-amber-400 data-[state=checked]:text-amber-950"
+                />
+                <Label htmlFor="gmt-hand" className="text-sm font-light">Show GMT hand</Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-amber-400" />
+                <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
+                  <SelectTrigger className="w-32 border-amber-200/20 bg-muted/10 focus:ring-amber-400/20">
+                    <SelectValue placeholder="Timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(
+                      (offset) => (
+                        <SelectItem 
+                          key={offset} 
+                          value={`GMT${offset >= 0 ? "+" : ""}${offset}`}
+                          className="font-light"
+                        >
+                          GMT{offset >= 0 ? "+" : ""}
+                          {offset}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>
