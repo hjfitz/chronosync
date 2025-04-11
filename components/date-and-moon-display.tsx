@@ -11,8 +11,6 @@ export function DateAndMoonDisplay() {
   const [date, setDate] = useState(new Date())
   const [moonPhase, setMoonPhase] = useState({ phase: "", percentage: 0 })
   const [selectedPreviewPhase, setSelectedPreviewPhase] = useState<string | null>(null)
-  const { theme } = useTheme()
-  const isDark = theme === "dark"
 
   useEffect(() => {
     const timer = setInterval(() => {

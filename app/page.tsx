@@ -33,7 +33,7 @@ export default function Home() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between py-8 border-b border-amber-200/10">
           <h1 className="text-2xl sm:text-3xl font-light tracking-wider text-foreground">
-            Chrono<span className="text-amber-400">Sync</span>
+            chrono<span className="text-amber-400">.hjf.io</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-2 sm:mt-0 font-light tracking-wider">Refined timekeeping for connoisseurs</p>
         </header>
@@ -42,13 +42,6 @@ export default function Home() {
           <CombinedTimeDisplay />
           <DateAndMoonDisplay />
         </div>
-
-        <footer className="mt-16 border-t border-amber-200/10 pt-8 text-center text-sm text-muted-foreground font-light tracking-wider">
-          <div className="flex flex-col items-center justify-center">
-            <div className="text-amber-400 font-serif mb-2">ChronoSync</div>
-            <div>© 2025 All rights reserved</div>
-          </div>
-        </footer>
       </div>
     </main>
   )

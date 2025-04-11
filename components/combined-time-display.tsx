@@ -3,8 +3,6 @@
 import { useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 import { Clock, Globe } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -38,11 +36,10 @@ const timezones: Timezone[] = [
 
 export function CombinedTimeDisplay() {
   const [time, setTime] = useState(new Date())
-  const [showGmtHand, setShowGmtHand] = useState(true)
   const [selectedTimezone, setSelectedTimezone] = useState<Timezone>(defaultTimezone)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { theme } = useTheme()
-  const [bezelsStyle, setBezelsStyle] = useState<"pepsi" | "batman" | "rootbeer" | "gmt">("pepsi")
+  const [bezelsStyle, setBezelsStyle] = useState<"pepsi" | "batman" | "gmt" | "explorer">("pepsi")
 
   // Get timezone offset in hours
   const getTimezoneOffset = (timezone: string) => {
@@ -80,13 +77,13 @@ export function CombinedTimeDisplay() {
         upper: "#001e96", // Blue (top half)
         lower: "#0a0a14"  // Black (bottom half)
       },
-      rootbeer: {
-        upper: "#382624", // Brown (top half)
-        lower: "#d4af37"  // Gold (bottom half)
-      },
       gmt: {
         upper: "#006e51", // Green (top half)
         lower: "#0a0a14"  // Black (bottom half)
+      },
+      explorer: {
+        upper: "#babbbd", // Steel color (full bezel)
+        lower: "#babbbd"  // Steel color (full bezel)
       }
     };
     
@@ -210,7 +207,14 @@ export function CombinedTimeDisplay() {
     const dialRadius = radius * 0.86; // Reduced from 0.88 to 0.86 to fit with wider bezel
     ctx.beginPath()
     ctx.arc(centerX, centerY, dialRadius, 0, 2 * Math.PI)
-    ctx.fillStyle = clockFaceBg
+
+    // Change dial color to opaline for Explorer 2 style
+    if (bezelsStyle === "explorer") {
+      // Opaline dial for Explorer 2
+      ctx.fillStyle = "#f0f0f0"
+    } else {
+      ctx.fillStyle = clockFaceBg
+    }
     ctx.fill()
 
     // Add a subtle edge to the dial for depth
@@ -220,10 +224,22 @@ export function CombinedTimeDisplay() {
     ctx.lineWidth = 1;
     ctx.stroke();
     
-    // Subtle texture for the dial
+    // Subtle texture for the dial - adjust for opaline
     ctx.beginPath()
     ctx.arc(centerX, centerY, dialRadius, 0, 2 * Math.PI)
-    ctx.fillStyle = "rgba(0, 0, 0, 0.8)"
+    if (bezelsStyle === "explorer") {
+      // Create subtle opaline texture effect
+      const opalineGradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, dialRadius
+      );
+      opalineGradient.addColorStop(0, "rgba(255, 255, 255, 0.8)");
+      opalineGradient.addColorStop(0.5, "rgba(240, 240, 240, 0.6)");
+      opalineGradient.addColorStop(1, "rgba(220, 220, 220, 0.4)");
+      ctx.fillStyle = opalineGradient;
+    } else {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.8)"
+    }
     ctx.fill()
     
     // Draw hour markers - GMT Master style (round markers at 1,2,4,5,7,8,10,11 and rectangular at 3,6,9, triangle at 12)
@@ -270,6 +286,62 @@ export function CombinedTimeDisplay() {
       ctx.fill()
     }
 
+    // Draw date window if enabled
+      // Position date window at 3 o'clock
+      const dateAngle = Math.PI / 2; // 3 o'clock position
+      const dateDistance = dialRadius * 0.7; // Slightly closer to center than hour markers
+      const dateX = centerX + dateDistance * Math.sin(dateAngle);
+      const dateY = centerY - dateDistance * Math.cos(dateAngle);
+      
+      // Date window size
+      const dateWidth = radius * 0.14;
+      const dateHeight = radius * 0.09;
+      
+      // Create date window background
+      ctx.beginPath();
+      ctx.rect(dateX - dateWidth/2, dateY - dateHeight/2, dateWidth, dateHeight);
+      
+      // Different background color based on style
+      if (bezelsStyle === "explorer") {
+        ctx.fillStyle = "#f0f0f0"; // Match opaline dial for Explorer
+      } else {
+        ctx.fillStyle = "#e0e0e0"; // Silver-white for GMT styles
+      }
+      ctx.fill();
+      
+      // Add border
+      ctx.strokeStyle = hourMarkersOutlineColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Add the date text
+      ctx.font = `bold ${radius * 0.07}px Arial, sans-serif`;
+      ctx.fillStyle = "#000000";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      // Format the date to show just the day
+      const dateNum = time.getDate().toString().padStart(2, '0');
+      ctx.fillText(dateNum, dateX, dateY);
+      
+      // Add cyclops magnification effect (the raised glass bubble over the date)
+      // This is just a visual effect - a gradient oval around the date window
+      const cyclopsGradient = ctx.createRadialGradient(
+        dateX, dateY, 0,
+        dateX, dateY, dateWidth
+      );
+      
+      cyclopsGradient.addColorStop(0, "rgba(255, 255, 255, 0)");
+      cyclopsGradient.addColorStop(0.7, "rgba(255, 255, 255, 0)");
+      cyclopsGradient.addColorStop(0.9, "rgba(255, 255, 255, 0.15)");
+      cyclopsGradient.addColorStop(1, "rgba(255, 255, 255, 0.25)");
+      
+      ctx.beginPath();
+      ctx.ellipse(dateX, dateY, dateWidth * 0.8, dateHeight * 1.3, 0, 0, Math.PI * 2);
+      ctx.fillStyle = cyclopsGradient;
+      ctx.fill();
+
+
     // Small minute markers
     ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"
     ctx.lineWidth = 1
@@ -290,22 +362,31 @@ export function CombinedTimeDisplay() {
       }
     }
     
-    // "ChronoSync" text - subtle luxury branding
     ctx.font = `${radius * 0.09}px 'Times New Roman', serif`
     ctx.fillStyle = hourMarkersOutlineColor
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
-    ctx.fillText("ChronoSync", centerX, centerY - dialRadius * 0.3)
+    ctx.fillText("chrono.hjf.io", centerX, centerY - dialRadius * 0.3)
     
     // "GMT-Master" text
     ctx.font = `${radius * 0.05}px 'Inter', sans-serif`
     ctx.fillStyle = "#e0e0e0"
-    ctx.fillText("GMT-Master", centerX, centerY + dialRadius * 0.3)
+    if (bezelsStyle === "explorer") {
+      ctx.fillStyle = "#000000" // Black text for opaline dial
+      ctx.fillText("Explorer II", centerX, centerY + dialRadius * 0.3)
+    } else {
+      ctx.fillText("GMT-Master", centerX, centerY + dialRadius * 0.3)
+    }
 
     // Get current hours, minutes, seconds
     const hours = time.getHours() % 12
     const minutes = time.getMinutes()
     const seconds = time.getSeconds()
+    const milliseconds = time.getMilliseconds()
+    const fullHours = time.getHours() // Full 24-hour value for GMT hand
+    
+    // Calculate fractional seconds for smooth sweep (when in high-beat mode)
+    const fractionalSeconds = seconds + milliseconds / 1000
 
     // Draw hour hand - Mercedes style
     const hourAngle = (hours * Math.PI) / 6 + (minutes * Math.PI) / (6 * 60)
@@ -349,16 +430,18 @@ export function CombinedTimeDisplay() {
     ctx.stroke()
 
     // Draw GMT hand with distinctive triangle tip
-    if (showGmtHand) {
       const offset = selectedTimezone.offset
-      const gmtHours = (hours + offset) % 24
+      const gmtHours = (fullHours + offset) % 24 // Use full hours instead of 12-hour format
       const gmtAngle = (gmtHours * Math.PI) / 12
       const gmtHandLength = dialRadius * 0.8
+      
+      // For Explorer 2, use orange GMT hand
+      const currentGmtHandColor = bezelsStyle === "explorer" ? "#ff4500" : gmtHandColor
       
       ctx.beginPath()
       ctx.lineWidth = radius * 0.02
       ctx.lineCap = "butt"
-      ctx.strokeStyle = gmtHandColor
+      ctx.strokeStyle = currentGmtHandColor
       
       ctx.moveTo(centerX, centerY)
       ctx.lineTo(
@@ -382,12 +465,11 @@ export function CombinedTimeDisplay() {
         tipY + radius * 0.04 * Math.sin(gmtAngle)
       )
       ctx.closePath()
-      ctx.fillStyle = gmtHandColor
+      ctx.fillStyle = currentGmtHandColor
       ctx.fill()
-    }
     
     // Draw second hand
-    const secondAngle = (seconds * Math.PI) / 30
+    const secondAngle = (fractionalSeconds * Math.PI) / 30
     const secondHandLength = dialRadius * 0.85
     
     ctx.beginPath()
@@ -446,20 +528,21 @@ export function CombinedTimeDisplay() {
     // Update on resize
     window.addEventListener("resize", updateCanvasSize)
 
-    // Update time every second
+    // Update time at appropriate interval based on mode
+    const updateInterval = 125 // 8 updates per second in high-beat mode
     const timer = setInterval(() => {
       const newTime = new Date()
       setTime(newTime)
 
       const { width, height } = canvas
       drawClock(ctx, newTime, width, height)
-    }, 1000)
+    }, updateInterval)
 
     return () => {
       clearInterval(timer)
       window.removeEventListener("resize", updateCanvasSize)
     }
-  }, [time, showGmtHand, selectedTimezone, theme, bezelsStyle])
+  }, [time, selectedTimezone, theme, bezelsStyle])
 
   // Format digital time
   const formatTime = (date: Date) => {
@@ -505,19 +588,19 @@ export function CombinedTimeDisplay() {
               }}
             />
             <button 
-              className={`w-5 h-5 rounded-full transition-opacity ${bezelsStyle === 'rootbeer' ? 'ring-1 ring-amber-400' : 'opacity-50'}`}
-              onClick={() => setBezelsStyle('rootbeer')}
-              title="Rootbeer bezel (brown/gold)"
-              style={{ 
-                background: 'linear-gradient(180deg, #382624 0%, #382624 50%, #d4af37 50%, #d4af37 100%)' 
-              }}
-            />
-            <button 
               className={`w-5 h-5 rounded-full transition-opacity ${bezelsStyle === 'gmt' ? 'ring-1 ring-amber-400' : 'opacity-50'}`}
               onClick={() => setBezelsStyle('gmt')}
               title="GMT bezel (green/black)"
               style={{ 
                 background: 'linear-gradient(180deg, #006e51 0%, #006e51 50%, #0a0a14 50%, #0a0a14 100%)' 
+              }}
+            />
+            <button 
+              className={`w-5 h-5 rounded-full transition-opacity ${bezelsStyle === 'explorer' ? 'ring-1 ring-amber-400' : 'opacity-50'}`}
+              onClick={() => setBezelsStyle('explorer')}
+              title="Explorer II bezel (steel/opaline)"
+              style={{ 
+                background: '#babbbd' 
               }}
             />
           </div>
@@ -546,17 +629,7 @@ export function CombinedTimeDisplay() {
             </div>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-border/20 pt-4">
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  id="gmt-hand" 
-                  checked={showGmtHand} 
-                  onCheckedChange={setShowGmtHand}
-                  className="data-[state=checked]:bg-amber-400 data-[state=checked]:text-amber-950"
-                />
-                <Label htmlFor="gmt-hand" className="text-sm font-light">Show GMT hand</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mx-auto">
                 <Globe className="h-4 w-4 text-amber-400" />
                 <Select value={selectedTimezone.label} onValueChange={(value) => {
                   const timezone = timezones.find((tz) => tz.label === value)
